@@ -2,3 +2,5 @@ elasticsearch-8.1.3*
 sample_dataset.json
 test_data.json
 venv
+.DS_Store
+elasticsearch/
