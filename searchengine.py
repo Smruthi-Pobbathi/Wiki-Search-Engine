@@ -32,7 +32,7 @@ def bulk_json_data(file, _index):
 
 if __name__ == "__main__":
   ELASTIC_PASSWORD = "BN6DY0PAr*Igq_dPHNWI"
-  index = "wiki_documents"
+  index = "wiki_documents1"
   es = Elasticsearch(
     "https://localhost:9200",
     ca_certs="/Users/smruthipobbathi/Documents/Spring22/Information Retrieval/Project/elasticsearch/config/certshttp_ca.crt",
@@ -40,11 +40,13 @@ if __name__ == "__main__":
     verify_certs=False
     )
 
+  # create mapping for the index
+  # res = es.create(index = index, document=mapping, id= 0)
+  
   # bulk api call for indexing
-  response = helpers.bulk(es, bulk_json_data("test_data.json", index))
+  response = helpers.bulk(es, bulk_json_data("wiki_dataset.json", index))
 
   # test call to check indexing
-  getcall = es.get(index=index, id="17279752")
+  getcall = es.get(index=index, id="1294428")
   print(getcall)
 
-  
