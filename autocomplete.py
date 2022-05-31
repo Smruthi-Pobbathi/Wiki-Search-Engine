@@ -7,32 +7,62 @@ from elasticsearch import Elasticsearch, helpers
 mapping = {
   "settings": {
     "index": {
-      "number_of_shards": 2,
+      "number_of_shards": 5,
       "number_of_replicas": 2
     },
     "analysis": {
-      "analyzer":{
-        "custom_analyser": {
-          "type": "custom",
-          "tokennizer": "standard",
-          "char_filter": [
-            "html_strip",
-            "emoticons"
-          ],
-          "filter": [
-            "lowercase",
-            "asciifolding",
-            "stop"
-          ]
+        "filter": {},
+        "analyzer": {
+            "keyword_analyzer": {
+                "filter" :[
+                    "lowercase",
+                    "asciifolding",
+                    "trim"
+                ],
+                "char_filter": [],
+                "type": "custom",
+                "tokenizer": "keyword"
+            },
+            "edge_ngram_analyzer": {
+                "filter":  "lowercase",
+                "tokenizer": "edge_ngram_tokenizer"
+            },
+            "edge_ngram_search_analyzer": {
+                "tokenizer": "lowercase"
+            },
+            "tokenizer": {
+                "egde_ngram_tokenizer": {
+                    "type": "edge_ngram",
+                    "min_gram": 2,
+                    "max_gram": 5,
+                    "token_chars": ["letter"]
+                }
+            }
         }
-      } 
     }
   },
     "mappings": {
         "properties": {
           "id": { "type": "integer" },
           "description": {"type": "text"},
-          "title" : { "type": "text" }
+          "title" : {
+               "type": "text",
+               "fields": {
+                   "keywordstring": {
+                       "type": "text",
+                       "analyzer": "keyword_analyzer"
+                   },
+                   "edgengram": {
+                       "type": "text",
+                       "analyzer": "edge_ngram_analyzer",
+                       "search_analyzer": "edge_n_gram_search_analyzer"
+                   },
+                   "completion": {
+                       "type": "completition"
+                   }
+               },
+               "analyzer": "standard"
+               }
           }}
 }
 
@@ -70,7 +100,7 @@ def pagerank_search(es, query, file, index):
       "query": {
       "bool": {
         "must": {
-          "match": { "title": query[1]},
+          "match": { "title": query[1]}
         },
         "should": {
           "rank_feature": {
@@ -90,7 +120,8 @@ def function_score_search(es, query, file, index):
       "query":{
           "function_score": {
               "query": {
-                  "match":{ "title": { "query": query[1]} }
+                  "match":{ "title": { "query": query[1]} },
+                  "match":{ "title": { "query": query[1]}}
                   },
                   "boost": "5",
               "functions": [{
@@ -112,9 +143,20 @@ def function_score_search(es, query, file, index):
     result = es.search(index = index, size=50, body = body)
     create_out_files(result, file, query)
 
+def auto_complete_search(es, query, file, index ):
+    body = {
+        "query": {
+            "prefix": {
+                "title.keyword": "Wickl"
+            }
+        }
+    }
+    result = es.search(index = index, size=50, body = body)
+    create_out_files(result, file, "Wickyl")
+
 if __name__ == "__main__":
   ELASTIC_PASSWORD = "BN6DY0PAr*Igq_dPHNWI"
-  index = "wiki_documents1"
+  index = "autocomplete1"
   es = Elasticsearch(
     "https://localhost:9200",
     ca_certs="/Users/smruthipobbathi/Documents/Spring22/Information Retrieval/Project/elasticsearch/config/certshttp_ca.crt",
@@ -122,18 +164,19 @@ if __name__ == "__main__":
     verify_certs=False
     )
 
-  # create mapping for the index
-  # res = es.create(index = index, document=mapping, id= 0)
+#   # create mapping for the index
+#   res = es.create(index = index, document=mapping, id= 0)
   
   # bulk api call for indexing
-  # response = helpers.bulk(es, bulk_json_data("enwiki20201020", index))
+#   response = helpers.bulk(es, bulk_json_data("enwiki20201020", index))
 
   # create queries list
-  queries = get_query_list("queries.csv")
+  queries = get_query_list("query_res_last.csv")
+  auto_complete = open('auto_complete_res.txt', 'w')
 
   page_rank_res = open('page_rank_res.txt', 'w') 
-  func_score_res = open('func_score_res.txt', 'w')
-
+  func_score_res = open('func_score_res', 'w')
+  auto_complete_search(es, queries[1], auto_complete, index)
 
   for query in queries:
     pagerank_search(es, query, page_rank_res, index)
@@ -142,4 +185,7 @@ if __name__ == "__main__":
   # test call to check indexing
   # getcall = es.get(index=index, id="1294428")
   # print(getcall)
+
+#   trying rank_eval
+# es.rank_eval()
 
